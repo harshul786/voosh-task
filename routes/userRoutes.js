@@ -3,10 +3,6 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const User = require("../models/users");
 const multer = require("multer");
-const fs = require("fs");
-const util = require("util");
-
-const unlinkFile = util.promisify(fs.unlink);
 
 // ----------- start Authentication/Authorization ------------------
 router.post("/signup", (req, res) => {
@@ -116,8 +112,6 @@ const upload = multer({
 
 const avatarUpload = async (file) => {
   if (file.mimetype !== "image/png" && file.mimetype !== "image/jpeg") {
-    // Clean up uploaded file
-    await unlinkFile(file.path);
     throw new Error("Unsupported file type");
   }
 
@@ -138,14 +132,8 @@ const avatarUpload = async (file) => {
     if (!response.ok) {
       throw new Error(json.message || "Failed to upload image");
     }
-
-    // Delete the file after successful upload
-    await unlinkFile(file.path);
-    console.log(json);
     return json.url;
   } catch (error) {
-    // Ensure we delete the file even when the upload fails
-    await unlinkFile(file.path);
     throw error; // Re-throw the error to be caught by the calling function
   }
 };
