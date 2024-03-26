@@ -6,7 +6,7 @@ const jwt_secret = process.env.JWTSECRET;
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header("Authentication").replace("Bearer ", "");
+    const token = req.header("Authorization").replace("Bearer ", "");
     // const token = req.cookies.Auth;
     const decoded = jwt.verify(token, "jwt-auth");
 
