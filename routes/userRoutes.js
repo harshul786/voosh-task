@@ -117,14 +117,19 @@ const avatarUpload = async (file) => {
 
   try {
     const data = new FormData();
-    data.append("file", fs.createReadStream(file.path));
+    data.append("file", file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
     data.append("upload_preset", "chat-nexa");
+
     const { default: fetch } = await import("node-fetch");
     const response = await fetch(
       "https://api.cloudinary.com/v1_1/harshul/image/upload",
       {
         method: "POST",
         body: data,
+        headers: data.getHeaders(), // Important for setting the correct multipart/form-data boundary
       }
     );
 
@@ -132,6 +137,8 @@ const avatarUpload = async (file) => {
     if (!response.ok) {
       throw new Error(json.message || "Failed to upload image");
     }
+
+    console.log(json);
     return json.url;
   } catch (error) {
     throw error; // Re-throw the error to be caught by the calling function
