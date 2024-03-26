@@ -31,12 +31,6 @@ app.use("/api/", userRoutes);
 
 // ------------------ Deployment ----------------------
 
-app.use(express.static(path.join(__dirname, "..", "build")));
-app.use(express.static(path.join(__dirname, "../public")));
-app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "..", "build", "index.html"));
-});
-
 app.listen(3000, () => {
   console.log("server started on port 3000");
 });

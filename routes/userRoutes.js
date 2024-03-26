@@ -15,18 +15,6 @@ const upload = multer({
     cb(undefined, true);
   },
 });
-// {
-//   dest: "avatars",
-//   limits: {
-//     fileSize: 1024 * 1024,
-//   },
-//   fileFilter(req, file, cb) {
-//     if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
-//       return cb(new Error("Please upload correct format image!"));
-//     }
-//     cb(undefined, true);
-//   },
-// });
 
 // ----------- start Authentication/Authorization ------------------
 router.post("/signup", (req, res) => {
@@ -40,33 +28,18 @@ router.post("/signup", (req, res) => {
     .save()
     .then(async function () {
       const token = await user.generateAuthToken();
-      res.cookie("Auth", token, {
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        httpOnly: true,
-        // sameSite: "none",
-        secure: true,
-      });
+      // Response with token in body instead of cookie
       res.send({ user: user.getPublicObject(), token });
     })
-    .catch((err) => res.send(err));
+    .catch((err) => res.status(400).send(err));
 });
 
 router.post("/signin", async function (req, res) {
   try {
-    const user = await User.authenticateByCredentials(
-      req.body.email,
-      req.body.password
-    );
-
+    const user = await User.authenticateByCredentials(req.body.email, req.body.password);
     const token = await user.generateAuthToken();
-    res.cookie("Auth", token, {
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      httpOnly: false,
-      // sameSite: "none",
-      secure: true,
-    });
-
-    res.send({ user: user.getPublicObject() });
+    // Response with token in body instead of cookie
+    res.send({ user: user.getPublicObject(), token });
   } catch (err) {
     res.status(400).send();
   }
@@ -74,15 +47,12 @@ router.post("/signin", async function (req, res) {
 
 router.post("/signout", auth, async (req, res) => {
   try {
-    req.user.tokens = req.user.tokens.filter((token) => {
-      return token.token != req.token;
-    });
-    res.clearCookie("Auth");
-
+    req.user.tokens = req.user.tokens.filter((token) => token.token != req.token);
     await req.user.save();
-    res.send("Signed Out!");
+    // Direct message response, no cookie clearing
+    res.send({ message: "Signed out successfully" });
   } catch (e) {
-    res.status(500).send();
+    res.status(500).send(e);
   }
 });
 
@@ -90,19 +60,19 @@ router.post("/signout-all", auth, async (req, res) => {
   try {
     req.user.tokens = [];
     await req.user.save();
-    res.clearCookie("Auth");
-    res.send("Signed Out!");
+    // Direct message response, no cookie clearing
+    res.send({ message: "Signed out from all sessions" });
   } catch (e) {
-    res.status(500).send();
+    res.status(500).send(e);
   }
 });
 
 router.delete("/user-profile", auth, async (req, res) => {
   try {
     await User.deleteOne({ _id: req.user._id });
-    res.send({ user: req.user });
+    res.send({ user: req.user.getPublicObject() });
   } catch (e) {
-    res.status(500).send();
+    res.status(500).send(e);
   }
 });
 
@@ -110,13 +80,11 @@ router.put("/reset-password", auth, async (req, res) => {
   try {
     req.user.password = req.body.password;
     await req.user.save();
-    res.send("Password changed succesfully!");
+    res.send({ message: "Password changed successfully" });
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
-
-// ----------- end Authentication/Authorization ------------------
 
 router.get("/user-profile", auth, async (req, res) => {
   const publicObject = req.user.getPublicObject();
@@ -126,36 +94,24 @@ router.get("/user-profile", auth, async (req, res) => {
 router.put("/edit-profile", auth, async (req, res) => {
   try {
     const updateFields = {};
-    if (req.body.name) {
-      updateFields.name = req.body.name;
-    }
-    if (req.body.bio) {
-      updateFields.bio = req.body.bio;
-    }
-    if (req.body.email) {
-      updateFields.email = req.body.email;
-    }
+    if (req.body.name) updateFields.name = req.body.name;
+    if (req.body.bio) updateFields.bio = req.body.bio;
+    if (req.body.email) updateFields.email = req.body.email;
 
     await User.findByIdAndUpdate(req.user._id, updateFields);
-
     res.send({ message: "Profile updated successfully" });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
 });
 
-router.post("/upload-avatar", auth, async (req, res) => {
+router.post("/upload-avatar", auth, (req, res) => {
   const url = req.body.avatarURL;
   try {
-    if (!url) {
-      throw new Error("Please upload an image!");
-    }
+    if (!url) throw new Error("Please upload an image!");
     req.user.avatar = url;
     await req.user.save();
-    res.send({
-      user: req.user.getPublicObject(),
-      message: "Avatar uploaded successfully!",
-    });
+    res.send({ user: req.user.getPublicObject(), message: "Avatar uploaded successfully!" });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
@@ -164,7 +120,7 @@ router.post("/upload-avatar", auth, async (req, res) => {
 router.post("/delete-avatar", auth, async (req, res) => {
   req.user.avatar = undefined;
   await req.user.save();
-  res.send();
+  res.send({ message: "Avatar deleted successfully" });
 });
 
 router.get("/avatars/fetch", async (req, res) => {
@@ -172,35 +128,8 @@ router.get("/avatars/fetch", async (req, res) => {
   try {
     const userData = await User.findById(userId);
     const imageSrc = userData.avatar;
-
     res.send({ img: imageSrc });
   } catch (err) {
     res.status(404).send(err.message);
   }
 });
-
-// ------------------ Chat APIs ----------------------
-
-router.post("/all-users", auth, async (req, res) => {
-  const keyword = req.body.search
-    ? {
-        $or: [
-          { name: { $regex: req.body.search, $options: "i" } },
-          { email: { $regex: req.body.search, $options: "i" } },
-        ],
-      }
-    : {};
-
-  try {
-    const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
-
-    const publicUsers = users.map((user) => {
-      return user.getPublicObject();
-    });
-    res.send(publicUsers);
-  } catch (err) {
-    res.status(404).send();
-  }
-});
-
-module.exports = router;
