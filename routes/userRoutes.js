@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const User = require("../models/users");
 const multer = require("multer");
-const fetch = require("node-fetch");
 const fs = require("fs");
 const util = require("util");
 
@@ -126,7 +125,7 @@ const avatarUpload = async (file) => {
     const data = new FormData();
     data.append("file", fs.createReadStream(file.path));
     data.append("upload_preset", "chat-nexa");
-
+    const { default: fetch } = await import("node-fetch");
     const response = await fetch(
       "https://api.cloudinary.com/v1_1/harshul/image/upload",
       {
