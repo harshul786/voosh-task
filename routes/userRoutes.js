@@ -36,7 +36,10 @@ router.post("/signup", (req, res) => {
 
 router.post("/signin", async function (req, res) {
   try {
-    const user = await User.authenticateByCredentials(req.body.email, req.body.password);
+    const user = await User.authenticateByCredentials(
+      req.body.email,
+      req.body.password
+    );
     const token = await user.generateAuthToken();
     // Response with token in body instead of cookie
     res.send({ user: user.getPublicObject(), token });
@@ -47,7 +50,9 @@ router.post("/signin", async function (req, res) {
 
 router.post("/signout", auth, async (req, res) => {
   try {
-    req.user.tokens = req.user.tokens.filter((token) => token.token != req.token);
+    req.user.tokens = req.user.tokens.filter(
+      (token) => token.token != req.token
+    );
     await req.user.save();
     // Direct message response, no cookie clearing
     res.send({ message: "Signed out successfully" });
@@ -105,13 +110,16 @@ router.put("/edit-profile", auth, async (req, res) => {
   }
 });
 
-router.post("/upload-avatar", auth, (req, res) => {
+router.post("/upload-avatar", auth, async (req, res) => {
   const url = req.body.avatarURL;
   try {
     if (!url) throw new Error("Please upload an image!");
     req.user.avatar = url;
     await req.user.save();
-    res.send({ user: req.user.getPublicObject(), message: "Avatar uploaded successfully!" });
+    res.send({
+      user: req.user.getPublicObject(),
+      message: "Avatar uploaded successfully!",
+    });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
