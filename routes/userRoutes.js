@@ -141,7 +141,7 @@ const avatarUpload = async (file) => {
 
     // Delete the file after successful upload
     await unlinkFile(file.path);
-
+    console.log(json);
     return json.url;
   } catch (error) {
     // Ensure we delete the file even when the upload fails
