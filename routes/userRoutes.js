@@ -8,18 +8,6 @@ const util = require("util");
 
 const unlinkFile = util.promisify(fs.unlink);
 
-const upload = multer({
-  limits: {
-    fileSize: 1024 * 1024,
-  },
-  fileFilter(req, file, cb) {
-    if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
-      return cb(new Error("Please upload correct format image!"));
-    }
-    cb(undefined, true);
-  },
-});
-
 // ----------- start Authentication/Authorization ------------------
 router.post("/signup", (req, res) => {
   const user = new User({
@@ -114,6 +102,18 @@ router.put("/edit-profile", auth, async (req, res) => {
   }
 });
 
+const upload = multer({
+  limits: {
+    fileSize: 1024 * 1024,
+  },
+  fileFilter(req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+      return cb(new Error("Please upload correct format image!"));
+    }
+    cb(undefined, true);
+  },
+});
+
 const avatarUpload = async (file) => {
   if (file.mimetype !== "image/png" && file.mimetype !== "image/jpeg") {
     // Clean up uploaded file
@@ -159,6 +159,7 @@ router.post(
       if (!req.file) {
         throw new Error("Please provide an image to upload");
       }
+      console.log(req.file);
       const url = await avatarUpload(req.file);
       req.user.avatar = url;
       await req.user.save();
