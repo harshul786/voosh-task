@@ -1,8 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
-const multer = require("multer");
 const User = require("../models/users");
+const multer = require("multer");
+const fetch = require("node-fetch");
+const fs = require("fs");
+const util = require("util");
+
+const unlinkFile = util.promisify(fs.unlink);
 
 const upload = multer({
   limits: {
@@ -110,20 +115,63 @@ router.put("/edit-profile", auth, async (req, res) => {
   }
 });
 
-router.post("/upload-avatar", auth, async (req, res) => {
-  const url = req.body.avatarURL;
-  try {
-    if (!url) throw new Error("Please upload an image!");
-    req.user.avatar = url;
-    await req.user.save();
-    res.send({
-      user: req.user.getPublicObject(),
-      message: "Avatar uploaded successfully!",
-    });
-  } catch (error) {
-    res.status(500).send({ error: error.message });
+const avatarUpload = async (file) => {
+  if (file.mimetype !== "image/png" && file.mimetype !== "image/jpeg") {
+    // Clean up uploaded file
+    await unlinkFile(file.path);
+    throw new Error("Unsupported file type");
   }
-});
+
+  try {
+    const data = new FormData();
+    data.append("file", fs.createReadStream(file.path));
+    data.append("upload_preset", "chat-nexa");
+
+    const response = await fetch(
+      "https://api.cloudinary.com/v1_1/harshul/image/upload",
+      {
+        method: "POST",
+        body: data,
+      }
+    );
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || "Failed to upload image");
+    }
+
+    // Delete the file after successful upload
+    await unlinkFile(file.path);
+
+    return json.url;
+  } catch (error) {
+    // Ensure we delete the file even when the upload fails
+    await unlinkFile(file.path);
+    throw error; // Re-throw the error to be caught by the calling function
+  }
+};
+
+router.post(
+  "/upload-avatar",
+  auth,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        throw new Error("Please provide an image to upload");
+      }
+      const url = await avatarUpload(req.file);
+      req.user.avatar = url;
+      await req.user.save();
+      res.send({
+        user: req.user.getPublicObject(),
+        message: "Avatar uploaded successfully!",
+      });
+    } catch (error) {
+      res.status(500).send({ error: error.message });
+    }
+  }
+);
 
 router.post("/delete-avatar", auth, async (req, res) => {
   req.user.avatar = undefined;
