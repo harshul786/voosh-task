@@ -1,0 +1,369 @@
+openapi: 3.0.0
+info:
+  title: User API
+  version: 2.0.0
+  description: This API facilitates comprehensive user management, authentication, role-based access control, and profile visibility settings.
+servers:
+  - url: http://localhost:3000
+paths:
+
+  /auth/google:
+    get:
+      summary: Trigger Google OAuth flow
+      description: Redirects to Google's OAuth 2.0 server for user authentication and authorization.
+      tags:
+        - Authentication
+      responses:
+        '302':
+          description: Redirect to Google's OAuth 2.0 server.
+        '500':
+          description: Internal Server Error
+  /auth/google/callback:
+    get:
+      summary: Google OAuth callback URL
+      description: Endpoint for Google OAuth 2.0 server to redirect to after user has authenticated. This should handle the authentication response.
+      tags:
+        - Authentication
+      parameters:
+        - in: query
+          name: code
+          schema:
+            type: string
+          required: true
+          description: The authorization code returned by Google after user consent.
+        - in: query
+          name: error
+          schema:
+            type: string
+          required: false
+          description: Error message returned if the user denies consent or another error occurs.
+      responses:
+        '200':
+          description: Successfully authenticated. Returns user object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '302':
+          description: Redirect to login on failure.
+        '500':
+          description: Internal Server Error
+
+  /api/signup:
+    post:
+      summary: User signup
+      description: Allows a new user to sign up by providing their name, email, password, optional bio, avatar URL, role, and profile visibility.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSignup'
+      responses:
+        '201':
+          description: Signup successful. Returns the newly created user and authentication token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Error in signup process, such as invalid input data.
+  
+  /api/signin:
+    post:
+      summary: User signin
+      description: Authenticates a user with email and password, returning a token upon success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Signin successful. Returns the authenticated user and token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Error in signin, such as invalid credentials.
+
+  /api/reset-password:
+    put:
+      summary: Reset password
+      description: Allows a user to change their password.
+      security:
+      - bearerAuth: [] 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+              required:
+                - password
+      responses:
+        '200':
+          description: Password changed successfully
+        '500':
+          description: Error changing password
+
+  /api/user-profile:
+    get:
+      summary: Get user profile
+      description: Returns the user's profile information.
+      security:
+      - bearerAuth: []      
+      responses:
+        '200':
+          description: Profile fetched successfully
+        '500':
+          description: Error fetching profile
+    delete:
+      summary: Delete user profile
+      description: Deletes the user's profile.
+      security:
+      - bearerAuth: [] 
+      responses:
+        '200':
+          description: Profile deleted successfully
+        '500':
+          description: Error deleting profile
+
+  /api/signout:
+    post:
+      summary: User signout
+      description: Signs out a user from the current session by invalidating the token.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Signout successful.
+        '401':
+          description: Unauthorized - User needs to be authenticated.
+
+  /api/signout-all:
+    post:
+      summary: Sign out from all sessions
+      description: Invalidates all tokens, signing out the user from all sessions. Restricted to admin users for any user, regular users can only sign out themselves from all sessions.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully signed out from all sessions.
+        '401':
+          description: Unauthorized - User needs to be authenticated.
+        '403':
+          description: Forbidden - Admin rights required for signing out other users.
+
+  # Update profile including public/private toggle
+  /api/edit-profile:
+    put:
+      summary: Edit user profile
+      description: Allows users to edit their profile details, including setting the profile visibility to public or private.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                bio:
+                  type: string
+                isProfilePublic:
+                  type: boolean
+              required: []
+      responses:
+        '200':
+          description: Profile updated successfully.
+        '400':
+          description: Bad Request - Invalid parameters.
+        '401':
+          description: Unauthorized - User needs to be authenticated.
+
+  # Fetch all public profiles
+  /api/public-profiles:
+    get:
+      summary: List public profiles
+      description: Retrieves a list of all user profiles that are marked as public.
+      responses:
+        '200':
+          description: Successfully retrieved list of public profiles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicUser'
+        '500':
+          description: Internal server error.
+
+  # Fetch specific user profile with privacy considerations
+  /api/user-profile/{id}:
+    get:
+      summary: Fetch specific user profile
+      description: Retrieves detailed information of a user's profile by their ID. Admins can access any profile; regular users can only access their own or public profiles.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the user whose profile is being requested.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved the user profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Access denied due to insufficient permissions or profile privacy settings.
+        '404':
+          description: The specified user profile was not found.
+        '500':
+          description: Internal server error.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UserSignup:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: johndoe@example.com
+        password:
+          type: string
+          format: password
+          example: "123456"
+        bio:
+          type: string
+          example: "An enthusiastic software developer."
+          required: false
+        avatar:
+          type: string
+          format: uri
+          example: "http://example.com/avatar.jpg"
+          required: false
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+          required: false
+        isProfilePublic:
+          type: boolean
+          example: true
+          required: false
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/PublicUser'
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    PublicUser:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "5f8d0d55b54764421b7156d5"
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          example: johndoe@example.com
+        bio:
+          type: string
+          example: "An enthusiastic software developer."
+        avatar:
+          type: string
+          example: "http://example.com/avatar.jpg"
+        role:
+          type: string
+          example: user
+        isProfilePublic:
+          type: boolean
+          example: true
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        bio:
+          type: string
+        isProfilePublic:
+          type: boolean
+          description: Indicates whether the user's profile is visible to the public.
+      required:
+        - name
+        - email
+
+    PublicUser:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+      description: Schema for public user profiles, excluding private information like email.
+
+    UserSignup:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - name
+        - email
+        - password
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: Authentication token issued upon successful signup or signin.

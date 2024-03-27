@@ -6,6 +6,15 @@ require("dotenv").config();
 
 const jwt_secret = process.env.JWTSECRET;
 
+// Helper function to validate image URLs
+function isValidImageUrl(url) {
+  // Basic check for URL structure and common image file extensions
+  return validator.isURL(url, {
+      protocols: ['http','https'],
+      require_protocol: true
+  }) && /\.(jpg|jpeg|png|gif)$/.test(url);
+}
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -16,10 +25,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      validate(val) {
-        if (!validator.isEmail(val)) {
-          throw Error("Not a valid Email Address!");
-        }
+      lowercase: true,
+      validate: {
+        validator: async function(email) {
+          if (!validator.isEmail(email)) {
+            throw new Error('Email is invalid');
+          }
+        },
+        message: props => `${props.value} is not a valid email or is already in use!` // Custom message
       },
     },
     bio: {
@@ -27,12 +40,12 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
-      validate(val) {
-        if (val.length < 6) {
-          throw Error("Password too short!");
-        }
-      },
+      // required: true,
+      // validate(val) {
+      //   if (val.length < 6) {
+      //     throw Error("Password too short!");
+      //   }
+      // },
     },
     tokens: [
       {
@@ -43,6 +56,26 @@ const userSchema = new mongoose.Schema(
       },
     ],
     avatar: {
+      type: String,
+      required: false,
+      validate: {
+        validator: function(v) {
+          return v === '' || isValidImageUrl(v); // Allow empty string or valid image URL
+        },
+        message: props => `${props.value} is not a valid image URL!`
+      },
+    },
+    role: {
+      type: String,
+      lowercase: true,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    isProfilePublic: {
+      type: Boolean,
+      default: true,
+    },
+    googleId: {
       type: String,
       required: false,
     },
@@ -62,7 +95,7 @@ userSchema.methods.getPublicObject = function () {
 userSchema.methods.generateAuthToken = async function () {
   const user = this;
 
-  const token = jwt.sign({ _id: user._id.toString() }, "jwt-auth", {
+  const token = jwt.sign({ _id: user._id.toString() }, jwt_secret, {
     expiresIn: "7 days",
   });
   user.tokens = user.tokens.concat({ token });
