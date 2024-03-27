@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function() {
         for (var i = 0; i < mutation.addedNodes.length; i++) {
           // Check if the added node is the Swagger UI top bar or another element you're targeting
           var node = mutation.addedNodes[i];
-          var topbar = document.getElementById("operations-Authentication-get_auth_google");
+          var topbar = document.getElementById("operations-Social_Login-get_auth_google");
           if (topbar) {
             // Create and append the Google Sign Up button
             var googleSignUpButton = document.createElement("button");
