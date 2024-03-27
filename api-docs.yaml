@@ -12,47 +12,20 @@ paths:
       summary: Trigger Google OAuth flow
       description: Redirects to Google's OAuth 2.0 server for user authentication and authorization.
       tags:
-        - Authentication
+        - Social Login
       responses:
         '302':
           description: Redirect to Google's OAuth 2.0 server.
         '500':
           description: Internal Server Error
-  /auth/google/callback:
-    get:
-      summary: Google OAuth callback URL
-      description: Endpoint for Google OAuth 2.0 server to redirect to after user has authenticated. This should handle the authentication response.
-      tags:
-        - Authentication
-      parameters:
-        - in: query
-          name: code
-          schema:
-            type: string
-          required: true
-          description: The authorization code returned by Google after user consent.
-        - in: query
-          name: error
-          schema:
-            type: string
-          required: false
-          description: Error message returned if the user denies consent or another error occurs.
-      responses:
-        '200':
-          description: Successfully authenticated. Returns user object.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '302':
-          description: Redirect to login on failure.
-        '500':
-          description: Internal Server Error
+  
 
   /api/signup:
     post:
       summary: User signup
       description: Allows a new user to sign up by providing their name, email, password, optional bio, avatar URL, role, and profile visibility.
+      tags:
+        - Authentication
       requestBody:
         required: true
         content:
@@ -73,6 +46,8 @@ paths:
     post:
       summary: User signin
       description: Authenticates a user with email and password, returning a token upon success.
+      tags:
+        - Authentication
       requestBody:
         required: true
         content:
@@ -102,6 +77,8 @@ paths:
     put:
       summary: Reset password
       description: Allows a user to change their password.
+      tags:
+        - Authentication
       security:
       - bearerAuth: [] 
       requestBody:
@@ -147,6 +124,8 @@ paths:
     post:
       summary: User signout
       description: Signs out a user from the current session by invalidating the token.
+      tags:
+        - Authentication
       security:
         - bearerAuth: []
       responses:
@@ -159,6 +138,8 @@ paths:
     post:
       summary: Sign out from all sessions
       description: Invalidates all tokens, signing out the user from all sessions. Restricted to admin users for any user, regular users can only sign out themselves from all sessions.
+      tags:
+        - Authentication
       security:
         - bearerAuth: []
       responses:
