@@ -102,6 +102,8 @@ paths:
     get:
       summary: Get user profile
       description: Returns the user's profile information.
+      tags:
+        - User
       security:
       - bearerAuth: []      
       responses:
@@ -112,6 +114,8 @@ paths:
     delete:
       summary: Delete user profile
       description: Deletes the user's profile.
+      tags:
+        - User
       security:
       - bearerAuth: [] 
       responses:
@@ -124,6 +128,8 @@ paths:
     post:
       summary: User signout
       description: Signs out a user from the current session by invalidating the token.
+      tags:
+        - User
       tags:
         - Authentication
       security:
@@ -138,6 +144,8 @@ paths:
     post:
       summary: Sign out from all sessions
       description: Invalidates all tokens, signing out the user from all sessions. Restricted to admin users for any user, regular users can only sign out themselves from all sessions.
+      tags:
+        - User
       tags:
         - Authentication
       security:
@@ -155,6 +163,8 @@ paths:
     put:
       summary: Edit user profile
       description: Allows users to edit their profile details, including setting the profile visibility to public or private.
+      tags:
+        - User
       security:
         - bearerAuth: []
       requestBody:
@@ -186,6 +196,8 @@ paths:
     get:
       summary: List public profiles
       description: Retrieves a list of all user profiles that are marked as public.
+      tags:
+        - User
       responses:
         '200':
           description: Successfully retrieved list of public profiles.
@@ -203,6 +215,8 @@ paths:
     get:
       summary: Fetch specific user profile
       description: Retrieves detailed information of a user's profile by their ID. Admins can access any profile; regular users can only access their own or public profiles.
+      tags:
+        - User
       parameters:
         - in: path
           name: id
@@ -225,6 +239,92 @@ paths:
           description: The specified user profile was not found.
         '500':
           description: Internal server error.
+
+  /api/upload-avatar:
+    post:
+      summary: Upload avatar
+      description: Allows an authenticated user to upload an avatar image. The image must be in JPG, JPEG, PNG, or WEBP format.
+      tags:
+        - Avatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Avatar image file to upload.
+      responses:
+        '200':
+          description: Avatar uploaded successfully. Returns the URL of the uploaded avatar.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: URL of the uploaded avatar image.
+                  message:
+                    type: string
+        '400':
+          description: Bad Request - No image file provided.
+        '500':
+          description: Internal Server Error - Failed to upload avatar.
+
+  /api/delete-avatar:
+    delete:
+      summary: Delete avatar
+      description: Allows an authenticated user to delete their current avatar.
+      tags:
+        - Avatar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Avatar deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized - User needs to be authenticated.
+        '500':
+          description: Internal Server Error - Failed to delete avatar.
+
+  /api/avatars/fetch/{id}:
+    get:
+      summary: Fetch User Avatar
+      description: Retrieves the avatar image URL for a specific user by their unique identifier. Returns the avatar image if available; otherwise, returns an error if the avatar or user is not found.
+      tags:
+        - Avatar
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the user whose avatar is being requested.
+      responses:
+        '200':
+          description: Successfully retrieved avatar image. The response is the image content directly.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Avatar not found - either the user does not exist or they do not have an avatar set.
+        '500':
+          description: Internal Server Error
+
 
 components:
   securitySchemes:
